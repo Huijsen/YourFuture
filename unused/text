@@ -1,0 +1,33 @@
+<ScrollView
+  style={{ flex: 1, minHeight: screenHeight }}
+  contentContainerStyle={{ flexGrow: 1 }}
+  keyboardShouldPersistTaps="handled"
+>
+  {(search.length > 0
+    ? allUsers.filter(
+        u =>
+          u.status === 'suggestion' &&
+          (u.name || '').toLowerCase().includes(search.toLowerCase())
+      )
+    : allUsers.filter(u => u.status === 'suggestion')
+  ).map(userData => {
+    const groupItem = {
+      id: userData.id,
+      name: userData.name,
+      bio: userData.bio,
+      type: 'person',
+      page: userData.id,
+    };
+
+    return (
+      <ExpandableGroup
+        key={groupItem.id}
+        item={groupItem}
+        onAddUser={handleAddUser}
+        expanded={expandedTitle === groupItem.page}
+        onToggle={() => onToggle(groupItem.page)}
+        setCurrentPage={setCurrentPage}
+      />
+    );
+  })}
+</ScrollView>

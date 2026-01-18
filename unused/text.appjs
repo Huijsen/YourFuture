@@ -1,0 +1,131 @@
+// App.jsx
+import React, { useState, useEffect } from "react";
+
+export default function App() {
+  const [users, setUsers] = useState([]);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [chatId, setChatId] = useState("");
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [mlSuggestions, setMlSuggestions] = useState({});
+
+  // Users ophalen
+  useEffect(() => {
+    fetch("http://localhost:3000/users")
+      .then(res => res.json())
+      .then(setUsers);
+  }, []);
+
+  // ML suggesties ophalen
+  useEffect(() => {
+    fetch("http://localhost:3000/suggestions")
+      .then(res => res.json())
+      .then(setMlSuggestions);
+  }, []);
+
+  // Chat ophalen
+  const loadChat = (chatId, userMac) => {
+    fetch(`http://localhost:3000/chat/${chatId}/${userMac}`)
+      .then(res => res.json())
+      .then(setMessages);
+    setChatId(chatId);
+  };
+
+  // Bericht sturen
+  const sendMessage = () => {
+    if (!newMessage || !selectedUser) return;
+    fetch("http://localhost:3000/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chatId,
+        senderMac: selectedUser.macAddress,
+        message: newMessage
+      })
+    })
+      .then(res => res.json())
+      .then(() => {
+        setMessages([...messages, { senderMac: selectedUser.macAddress, message: newMessage }]);
+        setNewMessage("");
+      });
+  };
+
+  // Nieuwe chat aanmaken
+  const createChat = (chatId, creatorMac) => {
+    fetch("http://localhost:3000/chat/new", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chatId, creatorMac })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          alert("Nieuwe chat aangemaakt!");
+          loadChat(chatId, creatorMac);
+        } else {
+          alert(data.error);
+        }
+      });
+  };
+
+  return (
+    <div style={{ display: "flex", padding: "20px", fontFamily: "sans-serif" }}>
+      {/* Users */}
+      <div style={{ flex: 1, marginRight: "20px" }}>
+        <h2>Users</h2>
+        {users.map(u => (
+          <div key={u.macAddress} style={{ marginBottom: "5px" }}>
+            <button onClick={() => setSelectedUser(u)}>{u.name || u.macAddress}</button>
+          </div>
+        ))}
+
+        {selectedUser && (
+          <>
+            <h3>ML Suggestions for {selectedUser.name || selectedUser.macAddress}</h3>
+            <ul>
+              {(mlSuggestions[selectedUser.macAddress] || []).map(s => (
+                <li key={s.mac}>{s.mac} → {s.score.toFixed(2)}</li>
+              ))}
+            </ul>
+          </>
+        )}
+      </div>
+
+      {/* Chat */}
+      <div style={{ flex: 2 }}>
+        <h2>Chat</h2>
+        {selectedUser ? (
+          <>
+            <div style={{ marginBottom: "10px" }}>
+              <input
+                placeholder="Chat ID"
+                value={chatId}
+                onChange={e => setChatId(e.target.value)}
+              />
+              <button onClick={() => loadChat(chatId, selectedUser.macAddress)}>Load Chat</button>
+              <button onClick={() => createChat(chatId, selectedUser.macAddress)}>New Chat</button>
+            </div>
+            <div style={{ border: "1px solid #ccc", padding: "10px", height: "300px", overflowY: "scroll" }}>
+              {messages.map((m, i) => (
+                <div key={i}>
+                  <b>{m.senderMac}: </b>{m.message}
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: "10px" }}>
+              <input
+                style={{ width: "70%" }}
+                placeholder="Type message"
+                value={newMessage}
+                onChange={e => setNewMessage(e.target.value)}
+              />
+              <button onClick={sendMessage}>Send</button>
+            </div>
+          </>
+        ) : (
+          <p>Select a user to start chatting</p>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,135 @@
+const express = require("express");
+const mongoose = require("mongoose");
+const User = require("./models/user");
+const Chat = require("./models/chat");
+const { spawn } = require("child_process");
+
+const app = express();
+app.use(express.json());
+
+// 🔗 Mongo connect
+mongoose.connect("mongodb://localhost:27017/mlapp")
+  .then(() => console.log("✅ MongoDB connected"))
+  .catch(err => console.log(err));
+
+// ---------- USERS ----------
+app.post("/user", async (req, res) => {
+  try {
+    const data = req.body;
+    const user = await User.findOneAndUpdate(
+      { macAddress: data.macAddress },
+      data,
+      { upsert: true, new: true }
+    );
+    res.json({ success: true, user });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/users", async (req, res) => {
+  const users = await User.find();
+  res.json(users);
+});
+
+// ---------- CHATS ----------
+app.post("/chat", async (req, res) => {
+  const { chatId, senderMac, message } = req.body;
+  try {
+    const chat = await Chat.findOne({ chatId });
+    if (!chat) return res.status(404).json({ error: "Chat not found" });
+
+    chat.messages.push({ senderMac, message }); // timestamp automatisch
+    if (!chat.allowedDevices.includes(senderMac)) chat.allowedDevices.push(senderMac);
+
+    await chat.save();
+    res.json({ success: true, chat });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/chat/:chatId/:mac", async (req, res) => {
+  const { chatId, mac } = req.params;
+  const chat = await Chat.findOne({ chatId });
+  if (!chat) return res.status(404).json({ error: "Chat not found" });
+  if (!chat.allowedDevices.includes(mac)) return res.status(403).json({ error: "Access denied" });
+  res.json(chat.messages);
+});
+
+// ---------- CREATE NEW CHAT ----------
+app.post("/chat/new", async (req, res) => {
+  const { chatId, creatorMac } = req.body;
+  try {
+    // Check of chat al bestaat
+    const existing = await Chat.findOne({ chatId });
+    if (existing) return res.status(400).json({ error: "Chat already exists" });
+
+    // Nieuwe chat aanmaken
+    const chat = new Chat({
+      chatId,
+      allowedDevices: [creatorMac],
+      messages: [] // leeg bij start
+    });
+
+    await chat.save();
+    res.json({ success: true, chat });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------- ML SUGGESTIONS ----------
+let mlSuggestions = {}; // per user: [{mac, score}, ...] gesorteerd van best → worst
+
+const runML = async () => {
+  try {
+    const users = await User.find();
+    const ml = spawn("python", ["main_ml.py"]);
+
+    // Stuur users naar stdin
+    ml.stdin.write(JSON.stringify(users));
+    ml.stdin.end();
+
+    let output = "";
+    ml.stdout.on("data", data => { output += data.toString(); });
+    ml.stderr.on("data", data => console.error("ML error:", data.toString()));
+
+    ml.on("close", code => {
+      try {
+        const results = JSON.parse(output);
+        // results: {user_ids: [...], similarity_matrix: [...], ...}
+        const userIds = results.user_ids;
+        const simMatrix = results.similarity_matrix;
+
+        mlSuggestions = {};
+        userIds.forEach((uid, i) => {
+          // andere users + score
+          const suggestions = userIds
+            .map((otherId, j) => ({ mac: otherId, score: simMatrix[i][j] }))
+            .filter(s => s.mac !== uid)             // verwijder jezelf
+            .sort((a, b) => b.score - a.score);     // best → worst
+          mlSuggestions[uid] = suggestions;
+        });
+
+        console.log("✅ ML suggesties per user bijgewerkt");
+      } catch (e) {
+        console.error("Error parsing ML output:", e, output);
+      }
+    });
+  } catch (err) {
+    console.error("Error running ML:", err);
+  }
+};
+
+// Run ML automatisch elk uur
+runML();
+setInterval(runML, 3600000);
+
+// Endpoint voor frontend
+app.get("/suggestions", (req, res) => {
+  res.json(mlSuggestions);
+});
+
+// ---------- SERVER START ----------
+app.listen(3000, () => console.log("🚀 Server running on port 3000"));
