@@ -13,7 +13,7 @@ export default ({ config }) => ({
 
   ios: {
     ...config.ios,
-    bundleIdentifier: "casper.YourFuture.V1",
+    bundleIdentifier: "com.huijsen.yourfuture",
     buildNumber: "1",
     supportsTablet: true,
     icon: "./assets/icons/icon-1024.png",
@@ -23,16 +23,17 @@ export default ({ config }) => ({
   },
 
   android: {
-    package: "casper.YourFuture.V1",
+    package: "com.huijsen.yourfuture",
     versionCode: 1,
     adaptiveIcon: {
       foregroundImage: "./assets/icons/adaptive-icon.png",
       backgroundColor: "#ffffff",
     },
   },
-    "extra": {
-      "eas": {
-        "projectId": "b37e6859-a0d6-4481-b9ec-027725387425"
-      }
-    }
+  
+  extra: {
+  	eas: {
+    	projectId: "35abaab1-bcbb-4ef8-8502-70193c953994"
+  	},
+  },
 });
