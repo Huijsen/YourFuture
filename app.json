@@ -1,10 +1,16 @@
 {
   "expo": {
-    "name": "def-final",
-    "slug": "def-final",
+    "name": "Your Future",
+    "slug": "yourfuture",
     "version": "1.0.0",
-    "scheme": "deffinal",
+    "scheme": "yourfuture",
     "platforms": ["ios", "android", "web"],
-    "sdkVersion": "54.0.0"
+    "sdkVersion": "54.0.0",
+    "owner": "huijsen",
+    "extra": {
+      "eas": {
+        "projectId": "35abaab1-bcbb-4ef8-8502-70193c953994"
+      }
+    },
   }
 }
