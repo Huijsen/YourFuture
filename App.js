@@ -23,7 +23,7 @@ import { styles } from './styles'; // <- import styles
 import { runMatching } from "./runMatching"; // Algorithm
 
 import useTasks from './Const/useTasks';
-import { ErrorOverlay, LoadingOverlay } from './Const/Overlay'; // adjust the path if needed
+import { ErrorOverlay } from './Const/Overlay'; // adjust the path if needed
 import { OfflineIndicator } from './Const/OfflineIndicator'; // adjust path
 
 // --- IMPORTS (functions) FOR COMPRIMIZING ---
@@ -1052,7 +1052,6 @@ export default function App() {
   return (
     <>
       <ErrorOverlay error={error} onDismiss={() => setError(null)} />
-      <LoadingOverlay isLoading={isLoading} />
       
       <View style={styles.container}>
         <OfflineIndicator />
