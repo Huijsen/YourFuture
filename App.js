@@ -56,6 +56,8 @@ import { getAuth, GoogleAuthProvider, signInWithCredential } from 'firebase/auth
 import { getDatabase, ref, set, update, push, child , onValue , get , remove } from "firebase/database";
 import { signInAnonymously } from 'firebase/auth';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 const firebaseConfig = {
   apiKey: "AIzaSyBCVfUpTplRIqiLAcgHrc5VVA7LO6T_Bbc",
   authDomain: "messages1-fb178.firebaseapp.com",
@@ -329,7 +331,9 @@ export default function App() {
     if (!mlUser) return;
     setMlUser(prev => ({ ...prev, bio: debouncedBio }));
 
-    set(ref(db, 'users/' + mlUser.id), { ...mlUser, bio: debouncedBio });
+    update(ref(db, `users/${mlUser.id}`), {
+      bio: debouncedBio
+    });
   }, [debouncedBio]);
 
   // DEBOUNCE NAME
@@ -445,6 +449,42 @@ export default function App() {
 
       loadActive();
   }, [userId]);
+
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        // 1️⃣ Check of we al een userId hebben
+        const storedUserId = await AsyncStorage.getItem("USER_ID");
+
+        if (storedUserId) {
+          console.log("🔁 Reusing stored userId:", storedUserId);
+          setUserId(storedUserId);
+          setIsAuthenticated(true);
+          setIsLoading(false);
+          return;
+        }
+
+        // 2️⃣ Anders: anoniem inloggen
+        const credential = await signInAnonymously(auth);
+        const uid = credential.user.uid;
+
+        console.log("🆕 New anonymous userId:", uid);
+
+        // 3️⃣ Opslaan voor volgende app start
+        await AsyncStorage.setItem("USER_ID", uid);
+
+        setUserId(uid);
+        setIsAuthenticated(true);
+        setIsLoading(false);
+      } catch (err) {
+        console.error("❌ Auth init error:", err);
+        setError("Authentication failed");
+        setIsLoading(false);
+      }
+    };
+
+    initAuth();
+  }, []);
 
   // REMOVES DUPLITCATES? (NOTNEEDED)??
   const removeSuggestedIfActiveDuplicate = (items) => {
@@ -647,28 +687,6 @@ export default function App() {
       return null;
     }
   };
-
-
-  useEffect(() => {
-    const signIn = async () => {
-      const userCredential = await signInAnonymously(auth);
-      setUserId(userCredential.user.uid);
-    };
-    signIn();
-  }, []);
-
-  /* 
-  useEffect(() => {
-    const init = async () => {
-      const fixedId = await generateUniqueId(); // <-- await it
-      if (fixedId) setUserId(fixedId);
-    };
-    init();
-  }, []);
-  */
-
-  // CREATES UNIQUE ID
-  const createUniquePageId = () => `page-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
   // CREATE CONSISTENT PAGE NAME
   const getPageName = (item) => {
