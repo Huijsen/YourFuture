@@ -56,8 +56,6 @@ import { getAuth, GoogleAuthProvider, signInWithCredential } from 'firebase/auth
 import { getDatabase, ref, set, update, push, child , onValue , get , remove } from "firebase/database";
 import { signInAnonymously } from 'firebase/auth';
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 const firebaseConfig = {
   apiKey: "AIzaSyBCVfUpTplRIqiLAcgHrc5VVA7LO6T_Bbc",
   authDomain: "messages1-fb178.firebaseapp.com",
@@ -85,29 +83,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false); // ← ADD THIS LINE
 
-  const [goals, setGoals] = useState([
-    {
-      title: 'Workout',
-      daysPerWeek: 1,
-      streakNumber: 0,
-      Currentstreak: '0',
-      longeststreak: '0 days',
-      consistency: '0%',
-      weekStreak: 0,
-      weekConsistency: '0%',
-      workoutCompleted: false,
-      dates: [
-        "2025-08-10T08:00:00.000Z",
-        "2025-08-11T10:15:00.000Z",
-        "2025-08-12T14:30:00.000Z",
-        "2025-08-13T09:00:00.000Z",
-      ],
-      weeks: [
-        "2025-W31",
-        "2025-W32",
-      ],
-    },
-  ]);  
+  const [goals, setGoals] = useState([]); // ← Leeg, wordt uit Firebase geladen
 
   const [workoutCompleted, setWorkoutCompleted] = useState(false);
   const [isAddingTask, setIsAddingTask] = useState(false);
@@ -211,29 +187,6 @@ export default function App() {
     loadTasksFromFirebase();
   }, [userId]);
 
-
-  useEffect(() => {
-    const signIn = async () => {
-      console.log("🔑 Attempting to sign in...");
-      try {
-        const userCredential = await signInAnonymously(auth);
-        console.log("✅ Signed in anonymously:", userCredential.user.uid);
-        setIsAuthenticated(true);
-        setIsLoading(false);
-        setError(null); // Clear any previous errors
-      } catch (err) {
-        console.error("❌ Auth error:", err);
-        console.error("❌ Error code:", err.code);
-        console.error("❌ Error message:", err.message);
-        
-        setError("Failed to authenticate. Please restart the app.");
-        setIsLoading(false);
-        setIsAuthenticated(false);
-      }
-    };
-    signIn();
-  }, []);
-
   const addTaskInputRef = useRef(null); // ← ADD THIS LINE
 
   useEffect(() => {
@@ -248,43 +201,7 @@ export default function App() {
   // REST DATA
   const [search, setSearch] = useState('');
 
-  const [items, setItems] = React.useState([
-    {
-      name: 'Gymboys',
-      page: 'gymboys',
-      bio: 'Workout crew',
-      type: 'group',
-      status: 'active',
-    },
-    {
-      name: 'Jake',
-      page: 'jake',
-      bio: 'Cool guy',
-      type: 'person',
-      status: 'active',
-    },
-    {
-      name: 'Foodies',
-      page: 'foodies',
-      bio: 'Loves food',
-      type: 'group',
-      status: 'active', // changed
-    },
-    {
-      name: 'Henk',
-      page: 'henkies',
-      bio: 'loves moving',
-      type: 'person',
-      status: 'active', // changed
-    },
-    {
-      name: 'Gerda',
-      page: 'Gerda',
-      bio: 'he is my favorite person',
-      type: 'person',
-      status: 'active',
-    },
-  ]);
+  const [items, setItems] = React.useState([]); // ← Leeg, wordt uit Firebase geladen
 
   const filteredList = items.filter(
     i =>
@@ -318,6 +235,218 @@ export default function App() {
   const [debouncedBio, setDebouncedBio] = useState(userBio);
 
   const [myRanking, setMyRanking] = useState([]);
+
+  // ==================== AUTHENTICATION ====================
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        console.log("🔍 CHECKING FOR EXISTING USER ID...");
+        
+        // 1️⃣ Check AsyncStorage first
+        const storedUserId = await AsyncStorage.getItem("USER_ID");
+        
+        if (storedUserId) {
+          console.log("✅ FOUND STORED USER ID:", storedUserId);
+          setUserId(storedUserId);
+          setIsAuthenticated(true);
+          setIsLoading(false);
+          return;
+        }
+
+        console.log("⚠️ NO STORED USER ID - Creating new user");
+        
+        // 2️⃣ Create new anonymous user
+        const credential = await signInAnonymously(auth);
+        const uid = credential.user.uid;
+
+        console.log("🆕 NEW USER CREATED:", uid);
+
+        // 3️⃣ Save to AsyncStorage
+        await AsyncStorage.setItem("USER_ID", uid);
+        console.log("💾 USER ID SAVED");
+
+        setUserId(uid);
+        setIsAuthenticated(true);
+        setIsLoading(false);
+        
+      } catch (err) {
+        console.error("❌ Auth error:", err);
+        setError("Authentication failed. Please restart the app.");
+        setIsLoading(false);
+        setIsAuthenticated(false);
+      }
+    };
+
+    initAuth();
+  }, []); // Empty dependency - runs ONLY once on mount
+
+  // ==================== LOAD USER DATA FROM FIREBASE ====================
+  useEffect(() => {
+    if (!userId) return;
+    
+    const loadUserData = async () => {
+      try {
+        const userRef = ref(db, `users/${userId}`);
+        const snapshot = await get(userRef);
+        
+        if (snapshot.exists()) {
+          const userData = snapshot.val();
+          
+          // Load name and bio from Firebase
+          if (userData.name) {
+            setUserName(userData.name);
+            setDebouncedName(userData.name);
+            console.log("✅ Name loaded:", userData.name);
+          }
+          
+          if (userData.bio) {
+            setUserBio(userData.bio);
+            setDebouncedBio(userData.bio);
+            console.log("✅ Bio loaded:", userData.bio);
+          }
+          
+          console.log("✅ User data loaded from Firebase");
+        } else {
+          console.log("ℹ️ No existing user data, starting fresh");
+        }
+      } catch (err) {
+        console.error("❌ Error loading user data:", err);
+      }
+    };
+    
+    loadUserData();
+  }, [userId]); // Runs when userId changes
+
+  // ADD THIS NEW EFFECT TO LOAD TASKS FROM FIREBASE ON STARTUP
+  useEffect(() => {
+    if (!userId) return;
+    
+    const loadTasksFromFirebase = async () => {
+      try {
+        const snapshot = await get(ref(db, `users/${userId}/tasks`));
+        if (snapshot.exists()) {
+          const loadedTasks = snapshot.val();
+          setTasks(loadedTasks);
+          console.log("✅ Tasks loaded from Firebase");
+        }
+      } catch (err) {
+        console.error("❌ Error loading tasks from Firebase:", err);
+      }
+    };
+
+    loadTasksFromFirebase();
+  }, [userId]);
+
+  // ⬇️ VOEG DIT TOE ⬇️
+  // ==================== LOAD GOALS FROM FIREBASE ====================
+  useEffect(() => {
+    if (!userId) return;
+    
+    const loadGoalsFromFirebase = async () => {
+      try {
+        const snapshot = await get(ref(db, `users/${userId}/goals`));
+          if (snapshot.exists()) {
+            const data = snapshot.val();
+            const loadedGoals = Array.isArray(data)
+              ? data.map(g => ({ ...g, dates: g.dates || [], weeks: g.weeks || [] }))
+              : Object.values(data).map(g => ({ ...g, dates: g.dates || [], weeks: g.weeks || [] }));
+            setGoals(loadedGoals);
+        } else {
+          // Alleen als er GEEN goals zijn, gebruik de default
+          console.log("ℹ️ No goals found, using default Workout goal");
+          const defaultGoals = [
+            {
+              title: 'Workout',
+              daysPerWeek: 1,
+              streakNumber: 0,
+              Currentstreak: '0',
+              longeststreak: '0 days',
+              consistency: '0%',
+              weekStreak: 0,
+              weekConsistency: '0%',
+              workoutCompleted: false,
+              dates: [],
+              weeks: [],
+            },
+          ];
+          setGoals(defaultGoals);
+          // Save default to Firebase
+          await set(ref(db, `users/${userId}/goals`), defaultGoals);
+        }
+      } catch (err) {
+        console.error("❌ Error loading goals from Firebase:", err);
+      }
+    };
+
+    loadGoalsFromFirebase();
+  }, [userId]);
+
+  // ==================== SAVE GOALS TO FIREBASE ====================
+  useEffect(() => {
+    if (!userId || !goals || goals.length === 0) return;
+    
+    const saveGoalsToFirebase = async () => {
+      try {
+        await set(ref(db, `users/${userId}/goals`), goals);
+        console.log("✅ Goals saved to Firebase");
+      } catch (err) {
+        console.error("❌ Error saving goals to Firebase:", err);
+      }
+    };
+
+    // Debounce the save
+    const timer = setTimeout(saveGoalsToFirebase, 500);
+    return () => clearTimeout(timer);
+  }, [goals, userId]);
+
+  // ==================== LOAD ITEMS (CHATS) FROM FIREBASE ====================
+  useEffect(() => {
+    if (!userId) return;
+    
+    const loadItemsFromFirebase = async () => {
+      try {
+        const snapshot = await get(ref(db, `users/${userId}/items`));
+        if (snapshot.exists()) {
+          const loadedItems = Object.values(snapshot.val());
+          setItems(loadedItems);
+          console.log("✅ Items loaded from Firebase:", loadedItems);
+        } else {
+          console.log("ℹ️ No items found, starting with empty list");
+          setItems([]);
+        }
+      } catch (err) {
+        console.error("❌ Error loading items from Firebase:", err);
+      }
+    };
+
+    loadItemsFromFirebase();
+  }, [userId]);
+
+  // ==================== SAVE ITEMS TO FIREBASE ====================
+  useEffect(() => {
+    if (!userId || !items || items.length === 0) return;
+    
+    const saveItemsToFirebase = async () => {
+      try {
+        // Convert array to object with page as key
+        const itemsObj = {};
+        items.forEach(item => {
+          if (item.page) {
+            itemsObj[item.page] = item;
+          }
+        });
+        
+        await set(ref(db, `users/${userId}/items`), itemsObj);
+        console.log("✅ Items saved to Firebase");
+      } catch (err) {
+        console.error("❌ Error saving items to Firebase:", err);
+      }
+    };
+
+    // Debounce the save
+    const timer = setTimeout(saveItemsToFirebase, 500);
+    return () => clearTimeout(timer);
+  }, [items, userId]);
 
   // DEBOUNCE BIO
   useEffect(() => {
@@ -354,137 +483,6 @@ export default function App() {
       moveItem(pageName, 'active'); // optional, for local UI
       await handleAddUser(item);    // handles Firebase write & UI update
   };
-
-  //ACTIVE LOADING
-  useEffect(() => {
-      if (!userId) return;
-
-      const loadActive = async () => {
-          try {
-          // Get active connections for this user
-          // Get chats where the user is involved
-          const snap = await get(ref(db, `chats`));
-          const data = snap.exists()
-            ? Object.values(snap.val()).filter(chat => 
-                chat.allowedUsers?.includes(userId)
-              )
-            : [];
-
-          // Fetch all users and groups
-          const usersSnap = await get(ref(db, "users"));
-          const groupsSnap = await get(ref(db, "groups"));
-          const users = usersSnap.exists() ? Object.values(usersSnap.val()) : [];
-          const groups = groupsSnap.exists() ? Object.values(groupsSnap.val()) : [];
-
-          const formatted = data.map(c => {
-              let name = "";
-              let bio = "";
-              if (c.type === "person") {
-              const user = users.find(u => u.id === c.id);
-              if (user) { name = user.name; bio = user.bio; }
-              } else {
-              const group = groups.find(g => g.id === c.id);
-              if (group) { name = group.name; bio = group.bio; }
-              }
-              return {
-              id: c.id,
-              type: c.type,
-              page: c.page,
-              name,
-              bio,
-              status: "active"
-              };
-          }).filter(Boolean);
-
-          setItems(prev => {
-              const merged = [...prev];
-
-              formatted.forEach(f => {
-              const existingIndex = merged.findIndex(i => i.page === f.page);
-              if (existingIndex > -1) {
-                  merged[existingIndex] = { ...merged[existingIndex], ...f };
-              } else {
-                  merged.push(f);
-              }
-              });
-
-              // Remove duplicates by name, prioritize active, prefer longer IDs
-              const ensureId = (item) =>
-              item.id ? item : { ...item, id: `${item.name}_${Math.random().toString(36).slice(2)}_${Date.now()}` };
-
-              const allItems = merged.map(ensureId);
-              const priority = (s) => (s === "active" ? 3 : s === "suggested" ? 2 : 1);
-              const nameBest = new Map();
-
-              for (const item of allItems) {
-              const existing = nameBest.get(item.name);
-
-              if (!existing) {
-                  nameBest.set(item.name, item);
-                  continue;
-              }
-
-              const pItem = priority(item.status);
-              const pExisting = priority(existing.status);
-
-              let winner = existing;
-
-              if (pItem > pExisting) {
-                  winner = item;
-              } else if (pItem === pExisting) {
-                  winner = existing.id.length > item.id.length ? existing : item;
-              }
-
-              nameBest.set(item.name, winner);
-              }
-
-              return Array.from(nameBest.values());
-          });
-
-          } catch (err) {
-          console.error("Firebase fetch error:", err);
-          setError("Failed to load contacts.");
-          }
-      };
-
-      loadActive();
-  }, [userId]);
-
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        // 1️⃣ Check of we al een userId hebben
-        const storedUserId = await AsyncStorage.getItem("USER_ID");
-
-        if (storedUserId) {
-          console.log("🔁 Reusing stored userId:", storedUserId);
-          setUserId(storedUserId);
-          setIsAuthenticated(true);
-          setIsLoading(false);
-          return;
-        }
-
-        // 2️⃣ Anders: anoniem inloggen
-        const credential = await signInAnonymously(auth);
-        const uid = credential.user.uid;
-
-        console.log("🆕 New anonymous userId:", uid);
-
-        // 3️⃣ Opslaan voor volgende app start
-        await AsyncStorage.setItem("USER_ID", uid);
-
-        setUserId(uid);
-        setIsAuthenticated(true);
-        setIsLoading(false);
-      } catch (err) {
-        console.error("❌ Auth init error:", err);
-        setError("Authentication failed");
-        setIsLoading(false);
-      }
-    };
-
-    initAuth();
-  }, []);
 
   // REMOVES DUPLITCATES? (NOTNEEDED)??
   const removeSuggestedIfActiveDuplicate = (items) => {
@@ -530,30 +528,46 @@ export default function App() {
     }
 
     const setupAndRun = async () => {
+      // ✅ CHECK DIRECT HIER: Skip als user bestaat maar naam nog niet geladen is
+      const userSnapshot = await get(ref(db, `users/${userId}`));
+      if (userSnapshot.exists() && !userName) {
+        console.log("⏳ Skipping algorithm: waiting for userName to load");
+        return;
+      }
+
       console.log("⚡ useEffect triggered (setup + algorithm)");
 
+      // ✅ LOAD EXISTING USER DATA FIRST
+      const existingUserSnap = await get(ref(db, `users/${userId}`));
+      const existingUser = existingUserSnap.exists() ? existingUserSnap.val() : {};
+
+      console.log("📦 Existing user data:", existingUser);
+
+      // ✅ MERGE: Keep existing data, only update what's needed
       const userData = {
-      id: String(userId),
-      name: debouncedName || `User${Math.floor(10000000 + Math.random() * 90000000)}`,
-      Country: "NL",
-      time_zone: "CET",
-      bio: debouncedBio || "This is my bio.",
-      groupsEntered: ["Fitness Group", "Designers Hub"],
-      status: "Active",
-      pic: "https://example.com/profile.jpg",
-      tasks,
-      goals,
-      streak_days: goals.reduce((sum, g) => sum + (g.streakNumber || 0), 0),
-      days_active_per_week: Math.round(
+        ...existingUser, // Keep ALL existing data
+        id: String(userId),
+        name: userName || existingUser.name || `User${Math.floor(10000000 + Math.random() * 90000000)}`,
+        bio: userBio || existingUser.bio || "This is my bio.",
+        streak_days: goals.reduce((sum, g) => sum + (g.streakNumber || 0), 0),
+        days_active_per_week: Math.round(
           goals.reduce((sum, g) => sum + (g.weekStreak || 0), 0) / goals.length
-      ),
+        ),
+        // Only set defaults if they don't exist yet
+        Country: existingUser.Country || "NL",
+        time_zone: existingUser.time_zone || "CET",
+        groupsEntered: existingUser.groupsEntered || [],
+        status: existingUser.status || "Active",
+        pic: existingUser.pic || "https://example.com/profile.jpg",
       };
+
+      console.log("💾 Merged user data:", userData);
 
       setMlUser(userData);
 
       try {
-      // Update user in Firebase
-      await set(ref(db, `users/${String(userData.id)}`), userData);
+        // Update user in Firebase with merged data
+        await set(ref(db, `users/${String(userData.id)}`), userData);
 
       // Get all users + groups
       const [usersSnap, groupsSnap] = await Promise.all([
@@ -667,7 +681,7 @@ export default function App() {
   };
 
   setupAndRun();
-  }, [tasks, goals, userId, debouncedName]);
+  }, [tasks, goals, userId, userName, userBio]); // ← Gebruik userName en userBio!
 
   // PAGEID
   const generateUniqueId = async () => {
