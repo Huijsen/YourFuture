@@ -128,30 +128,50 @@ export default function EditTaskPage({
             ]}
             autoFocus
             onSubmitEditing={() => {
-                if (newSubtask.trim()) {
-                const updated = [...tasks];
-                updated[selectedTask].subtasks.unshift({ // <- use unshift
-                    text: newSubtask,
-                    desc: '',
-                    checked: false,
-                });
-                setTasks(updated);
-                setNewSubtask('');
-                setShowAddSubtask(false);
-                }
+            if (newSubtask.trim()) {
+            const updated = [...tasks];
+
+
+            // Initialize subtasks array if undefined
+            if (!updated[selectedTask].subtasks) {
+            updated[selectedTask].subtasks = [];
+            }
+
+
+            updated[selectedTask].subtasks.unshift({
+            text: newSubtask,
+            desc: '',
+            checked: false,
+            });
+
+
+            setTasks(updated);
+            setNewSubtask('');
+            setShowAddSubtask(false);
+            }
             }}
             onBlur={() => {
-                if (newSubtask.trim()) {
-                const updated = [...tasks];
-                updated[selectedTask].subtasks.unshift({ // <- use unshift
-                    text: newSubtask,
-                    desc: '',
-                    checked: false,
-                });
-                setTasks(updated);
-                setNewSubtask('');
-                }
-                setShowAddSubtask(false);
+            if (newSubtask.trim()) {
+            const updated = [...tasks];
+
+
+            // Initialize subtasks array if undefined
+            if (!updated[selectedTask].subtasks) {
+            updated[selectedTask].subtasks = [];
+            }
+
+
+            updated[selectedTask].subtasks.unshift({
+            text: newSubtask,
+            desc: '',
+            checked: false,
+            });
+
+
+            setTasks(updated);
+            setNewSubtask('');
+            }
+            setShowAddSubtask(false);
             }}
             />
         </View>
