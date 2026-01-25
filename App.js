@@ -838,43 +838,56 @@ export default function App() {
 
   // AUTO UPDATE 
   useEffect(() => {
-  const interval = setInterval(async () => {
+    const interval = setInterval(async () => {
       try {
-      const [usersSnap, groupsSnap] = await Promise.all([
+        const [usersSnap, groupsSnap] = await Promise.all([
           get(ref(db, "users")),
           get(ref(db, "groups")),
-      ]);
+        ]);
 
-      const usersData = usersSnap.exists() ? Object.values(usersSnap.val()) : [];
-      const groupsData = groupsSnap.exists() ? Object.values(groupsSnap.val()) : [];
+        const usersData = usersSnap.exists() ? Object.values(usersSnap.val()) : [];
+        const groupsData = groupsSnap.exists() ? Object.values(groupsSnap.val()) : [];
 
-      setItems(prev => {
-          return prev.map(item => {
-          const updated = { ...item };
+        setItems(prev => {
+          const updated = prev.map(item => {
+            const updatedItem = { ...item };
 
-          if (item.type === "person") {
+            if (item.type === "person") {
               const user = usersData.find(u => u.id === item.id);
               if (user) {
-              updated.name = user.name;
-              updated.bio = user.bio || updated.bio;
+                updatedItem.name = user.name;
+                updatedItem.bio = user.bio || updatedItem.bio;
               }
-          } else if (item.type === "group") {
+            } else if (item.type === "group") {
               const group = groupsData.find(g => g.id === item.id);
               if (group) {
-              updated.name = group.name;
-              updated.bio = group.bio || updated.bio;
+                updatedItem.name = group.name;
+                updatedItem.bio = group.bio || updatedItem.bio;
               }
+            }
+
+            return updatedItem;
+          });
+
+          // ✅ ADD THIS: Save to Firebase
+          if (mlUser?.id) {
+            const itemsObj = {};
+            updated.forEach(item => {
+              if (item.page) {
+                itemsObj[item.page] = item;
+              }
+            });
+            set(ref(db, `users/${mlUser.id}/items`), itemsObj);
           }
 
           return updated;
-          });
-      });
+        });
       } catch (err) {
-      console.error("❌ Auto-refresh name update error:", err);
+        console.error("❌ Auto-refresh name update error:", err);
       }
-  }, 10000);
+    }, 10000);
 
-  return () => clearInterval(interval);
+    return () => clearInterval(interval);
   }, [mlUser?.id]);
 
   // ADD WHEN APART OF A CHAT
@@ -883,12 +896,13 @@ export default function App() {
 
     const chatsRef = ref(db, "chats");
 
-    const unsubscribe = onValue(chatsRef, (snapshot) => {
+    const unsubscribe = onValue(chatsRef, async (snapshot) => {
       if (!snapshot.exists()) return;
 
       const allChats = snapshot.val();
 
-      Object.keys(allChats).forEach((pageName) => {
+      // ✅ Change forEach to for...of loop to properly handle async/await
+      for (const pageName of Object.keys(allChats)) {
         const chat = allChats[pageName];
 
         console.log("📡 Checking chat:", pageName, chat);
@@ -900,7 +914,7 @@ export default function App() {
         // Only continue if this chat involves the current user
         if (!allowed.includes(mlUser.id)) {
           console.log("⛔ User not in allowedUsers, skipping:", mlUser.id);
-          return;
+          continue;
         }
 
         console.log("✅ User is part of this chat:", mlUser.id);
@@ -915,16 +929,19 @@ export default function App() {
         const existingChat = items.find((i) => i.page === pageName);
         if (existingChat) {
           console.log("🔁 Chat already exists locally, skipping:", pageName);
-          return;
+          continue;
         }
 
         // CASE 1: Current user is the one who ADDED someone
         if (addedBy === mlUser.id && addedUserId) {
           console.log("🟦 Current user ADDED someone:", addedUserId);
 
+          // CASE 1
           const suggested = items.find(
-            (i) => i.page === addedUserId && i.status === "suggested"
+            (i) => (i.id === addedUserId || i.id?.startsWith(addedUserId)) && i.status === "suggested"
           );
+
+
 
           if (suggested) {
             console.log("🔄 Converting suggested → active for added user:", addedUserId);
@@ -933,6 +950,7 @@ export default function App() {
               ...suggested,
               page: pageName,
               status: "active",
+              id: addedUserId,  // ✅ Add this
             };
 
             setItems((prev) =>
@@ -954,7 +972,7 @@ export default function App() {
             remove(ref(db, `users/${mlUser.id}/items/${addedUserId}`));
             remove(ref(db, `users/${mlUser.id}/items/${mlUser.id}`));
 
-            return;
+            continue;
           }
         }
 
@@ -962,8 +980,9 @@ export default function App() {
         if (addedUserId === mlUser.id && addedBy) {
           console.log("🟩 Current user WAS ADDED by:", addedBy);
 
+          // CASE 2
           const suggested = items.find(
-            (i) => i.page === addedBy && i.status === "suggested"
+            (i) => (i.id === addedBy || i.id?.startsWith(addedBy)) && i.status === "suggested"
           );
 
           if (suggested) {
@@ -973,6 +992,7 @@ export default function App() {
               ...suggested,
               page: pageName,
               status: "active",
+              id: addedBy,  // ✅ Add this
             };
 
             setItems((prev) =>
@@ -994,19 +1014,44 @@ export default function App() {
             remove(ref(db, `users/${mlUser.id}/items/${addedBy}`));
             remove(ref(db, `users/${mlUser.id}/items/${mlUser.id}`));
 
-            return;
+            continue;
           }
         }
 
         // CASE 3: No suggested item → create new active chat item
         console.log("🆕 Creating new active chat item:", pageName);
 
+        // ✅ NEW CODE - Fetch the actual name:
+        // Fetch the other user's name from Firebase
+        let displayName = chat.pageName; // fallback
+        if (otherUserId) {
+          try {
+            const otherUserSnap = await get(ref(db, `users/${otherUserId}`));
+            if (otherUserSnap.exists()) {
+              displayName = otherUserSnap.val().name || otherUserId;
+            }
+          } catch (err) {
+            console.error("❌ Error fetching other user name:", err);
+            displayName = otherUserId; // fallback to ID if fetch fails
+          }
+        } else if (chat.type === "group" && chat.groupId) {
+          try {
+            const groupSnap = await get(ref(db, `groups/${chat.groupId}`));
+            if (groupSnap.exists()) {
+              displayName = groupSnap.val().name || chat.pageName;
+            }
+          } catch (err) {
+            console.error("❌ Error fetching group name:", err);
+          }
+        }
+
         const newItem = {
           page: pageName,
-          name: otherUserId || chat.pageName,
+          name: displayName,  // ✅ Now shows actual name!
           type: chat.type || "person",
           status: "active",
           bio: "",
+          id: otherUserId || chat.groupId, // Store the ID separately
         };
 
         setItems((prev) =>
@@ -1027,7 +1072,7 @@ export default function App() {
         if (otherUserId) {
           remove(ref(db, `users/${mlUser.id}/items/${otherUserId}`));
         }
-      });
+      }
     });
 
     return () => unsubscribe();
