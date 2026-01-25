@@ -23,7 +23,7 @@ export default function HomeTasks({
   handleAddTask,
   handleAddSuggestionTask,
   setIsAddingTask,
-  activeTasks, // CHANGED: from tasks
+  activeTasks,
   doneTasks,
   doneCollapsed,
   setDoneCollapsed,
@@ -39,17 +39,39 @@ export default function HomeTasks({
   setSubtaskFromTaskModal,
   setCurrentPage,
   inputRef,
-  tasks, // NEW: need full tasks array to find original index
+  tasks,
 }) {
   const wrapperRef = useRef(null);
 
   const saveTaskIfNeeded = () => {
-    if (newTaskText.trim()) handleAddTask();
+    if (newTaskText.trim()) {
+      handleAddTask();
+    }
     setIsAddingTask(false);
     setNewTaskText('');
     setFilteredSuggestions([]);
-    Keyboard.dismiss();
   };
+
+  // Listen for keyboard dismiss
+  useEffect(() => {
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardDidHide',
+      () => {
+        if (isAddingTask && newTaskText.trim()) {
+          handleAddTask();
+        }
+        if (isAddingTask) {
+          setIsAddingTask(false);
+          setNewTaskText('');
+          setFilteredSuggestions([]);
+        }
+      }
+    );
+
+    return () => {
+      keyboardDidHideListener.remove();
+    };
+  }, [isAddingTask, newTaskText]);
 
   useEffect(() => {
     if (isAddingTask) {
@@ -63,18 +85,8 @@ export default function HomeTasks({
       style={{ flex: 1 }}
     >
       <TouchableWithoutFeedback
-        onPress={(e) => {
-          wrapperRef.current?.measure((fx, fy, width, height, px, py) => {
-            const { locationX, locationY } = e.nativeEvent;
-            if (
-              locationX < px ||
-              locationX > px + width ||
-              locationY < py ||
-              locationY > py + height
-            ) {
-              saveTaskIfNeeded();
-            }
-          });
+        onPress={() => {
+          Keyboard.dismiss();
         }}
       >
         <View style={{ flex: 1 }}>
@@ -105,7 +117,23 @@ export default function HomeTasks({
                   style={styles.underlineInput}
                   autoFocus
                   onSubmitEditing={() => {
-                    if (newTaskText.trim()) saveTaskIfNeeded();
+                    if (newTaskText.trim()) {
+                      handleAddTask();
+                      setIsAddingTask(false);
+                      setNewTaskText('');
+                      setFilteredSuggestions([]);
+                    }
+                  }}
+                  onBlur={() => {
+                    // Save when input loses focus
+                    setTimeout(() => {
+                      if (newTaskText.trim()) {
+                        handleAddTask();
+                      }
+                      setIsAddingTask(false);
+                      setNewTaskText('');
+                      setFilteredSuggestions([]);
+                    }, 100);
                   }}
                 />
                 {filteredSuggestions.length > 0 && (
@@ -132,7 +160,6 @@ export default function HomeTasks({
 
           {/* Active Tasks list */}
           {activeTasks.map((task) => {
-            // Find the original index in the full tasks array
             const originalIndex = tasks.findIndex(t => t === task);
             
             return (
@@ -182,7 +209,6 @@ export default function HomeTasks({
           {/* Done Tasks list */}
           {!doneCollapsed &&
             doneTasks.map((task) => {
-              // Find the original index in the full tasks array
               const originalIndex = tasks.findIndex(t => t === task);
               
               return (
@@ -196,17 +222,17 @@ export default function HomeTasks({
                   onToggleSubtask={(subIdx) => updateSubtaskChecked(originalIndex, subIdx)}
                   onDeleteSubtask={(subIdx) => deleteSubtask(originalIndex, subIdx)}
                   onPress={() => {
-                  setSelectedTask(originalIndex);
-                  setEditedText(task.text);
-                  setEditedDesc(task.desc);
-                  setCurrentPage('editTask');
+                    setSelectedTask(originalIndex);
+                    setEditedText(task.text);
+                    setEditedDesc(task.desc);
+                    setCurrentPage('editTask');
                   }}
                   onPressSubtask={(subIdx) => {
-                  setSelectedSubtask({ taskIdx: originalIndex, subIdx });
-                  setEditedSubtaskText(task.subtasks[subIdx].text);
-                  setEditedSubtaskDesc(task.subtasks[subIdx].desc || '');
-                  setSubtaskFromTaskModal(false);
-                  setCurrentPage('editSubtask');
+                    setSelectedSubtask({ taskIdx: originalIndex, subIdx });
+                    setEditedSubtaskText(task.subtasks[subIdx].text);
+                    setEditedSubtaskDesc(task.subtasks[subIdx].desc || '');
+                    setSubtaskFromTaskModal(false);
+                    setCurrentPage('editSubtask');
                   }}
                 />
               );
@@ -216,17 +242,3 @@ export default function HomeTasks({
     </KeyboardAvoidingView>
   );
 }
-
-{/*
-<TaskItem
-  key={originalIndex}
-  text={task.text}
-  checked={true}
-  subtitle={task.desc}
-  subtasks={task.subtasks}
-  onToggle={() => toggleCheckTask(originalIndex)}
-  onToggleSubtask={() => {}}
-  onPress={() => {}}
-  onPressSubtask={() => {}}
-/>
-*/}
