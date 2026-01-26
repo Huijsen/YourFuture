@@ -35,6 +35,7 @@ export default function TargetScreen({
             daysPerWeek={goal.daysPerWeek}
             onEditGoalPage={() => handleEditGoal(index)}
             goalDates={goal.dates}
+            color={goal.color}
             onDeleteGoal={() => {
             const updated = goals.filter((_, idx) => idx !== index);
             setGoals(updated); // now a plain array

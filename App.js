@@ -358,6 +358,7 @@ export default function App() {
   weekStreak: Number(g.weekStreak) || 0,
   dates: g.dates || [],
   weeks: g.weeks || [],
+  color: g.color || '#808080',  // ✅ ADD THIS: load color or use default
   }))
   : Object.values(data).map(g => ({
   ...g,
@@ -366,6 +367,7 @@ export default function App() {
   weekStreak: Number(g.weekStreak) || 0,
   dates: g.dates || [],
   weeks: g.weeks || [],
+  color: g.color || '#808080',  // ✅ ADD THIS: load color or use default
   }));
   setGoals(loadedGoals);
   } else {
@@ -377,6 +379,7 @@ export default function App() {
   const defaultGoals = [
   {
   title: 'Workout',
+  color: '#001aff',
   daysPerWeek: 1,
   streakNumber: 0,
   Currentstreak: '0',
@@ -1139,6 +1142,16 @@ export default function App() {
   const inputRef = useRef(null);
   const pressingAdd = useRef(false);
 
+  // Add this helper function near the top of App.js, after your state declarations
+  const getGoalColor = (taskText) => {
+    if (!taskText.startsWith('Goal - ')) return null;
+    
+    const goalTitle = taskText.replace('Goal - ', '').trim();
+    const matchingGoal = goals.find(g => g.title === goalTitle);
+    
+    return matchingGoal?.color || null;
+  };
+
   useEffect(() => {
     if (showAddSubtask) {
       setTimeout(() => {
@@ -1347,6 +1360,7 @@ export default function App() {
                 filteredSuggestions={filteredSuggestions}
                 setFilteredSuggestions={setFilteredSuggestions}
                 goals={goals}
+                getGoalColor={getGoalColor}  // ← ADD THIS
                 handleAddTask={handleAddTask}
                 handleAddSuggestionTask={handleAddSuggestionTask}
                 setIsAddingTask={setIsAddingTask}
@@ -1448,13 +1462,7 @@ export default function App() {
               }
             />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setCurrentPage('people')}>
-            <Ionicons
-              name="people-circle"
-              size={60}
-              color={peoplePages.includes(currentPage) ? '#2772BC' : 'grey'}
-            />
-          </TouchableOpacity>
+
           <TouchableOpacity
             onPress={() => {
               setCurrentPage('target');
@@ -1495,6 +1503,14 @@ export default function App() {
                   ? '#2772BC'
                   : 'grey'
               }
+            />
+          </TouchableOpacity>          
+          
+          <TouchableOpacity onPress={() => setCurrentPage('people')}>
+            <Ionicons
+              name="people-circle"
+              size={60}
+              color={peoplePages.includes(currentPage) ? '#2772BC' : 'grey'}
             />
           </TouchableOpacity>
         </View>

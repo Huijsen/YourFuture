@@ -20,6 +20,7 @@ export default function HomeTasks({
   filteredSuggestions,
   setFilteredSuggestions,
   goals,
+  getGoalColor,  // ← ADD THIS
   handleAddTask,
   handleAddSuggestionTask,
   setIsAddingTask,
@@ -166,6 +167,7 @@ export default function HomeTasks({
               <TaskItem
                 key={originalIndex}
                 text={task.text}
+                getGoalColor={getGoalColor}  // ← ADD THIS
                 checked={false}
                 subtitle={task.desc}
                 subtasks={task.subtasks}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TextInput } from 'react-native';
+import { View, TextInput, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function ProfilePage({
@@ -32,32 +32,30 @@ export default function ProfilePage({
             value={userName}
             onChangeText={setUserName}
           />
-
-          <TextInput
-            style={{ fontSize: 14 , marginTop: 4 }}
-            placeholder="Your Bio"
-            value={userBio}
-            onChangeText={setUserBio}
-          />
         </View>
       </View>
 
       <View
         style={{
-          height: 50,
+          flexDirection: 'row',
+          alignItems: 'center',
+          height: 60,
           backgroundColor: '#eee',
           borderRadius: 10,
           marginBottom: 10,
+          paddingHorizontal: 10,
         }}
-      />
-
-      <View
-        style={{
-          height: 50,
-          backgroundColor: '#eee',
-          borderRadius: 10,
-        }}
-      />
+      >
+        <Text style={{ fontSize: 16, fontWeight: 'bold', marginRight: 10 }}>
+          Bio:
+        </Text>
+        <TextInput
+          style={{ fontSize: 14}}
+          placeholder="Your Bio"
+          value={userBio}
+          onChangeText={setUserBio}
+        />
+      </View>
     </View>
   );
 }

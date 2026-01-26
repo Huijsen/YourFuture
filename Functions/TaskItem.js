@@ -14,9 +14,13 @@ export default function TaskItem({
   onToggleSubtask,
   onDeleteSubtask,
   onPressSubtask,
+  getGoalColor  // ← NEW PROP
 }) {
+  // ✅ Calculate goal color from text
+  const goalColor = getGoalColor ? getGoalColor(text) : null;
+
   return (
-    <View style={{ marginBottom: 10 , maxWidth: '85%' }}>
+    <View style={{ marginBottom: 10, maxWidth: '85%' }}>
       <TouchableOpacity onPress={onPress} style={styles.taskRow}>
         <TouchableOpacity onPress={onToggle} style={{ marginRight: 10 }}>
           <View style={styles.squareBox}>
@@ -25,14 +29,24 @@ export default function TaskItem({
         </TouchableOpacity>
 
         <View style={{ flex: 1 }}>
-          <Text numberOfLines={3} style={[styles.taskText, checked && styles.strikedText]}>
+          <Text 
+            numberOfLines={3} 
+            style={[
+              styles.taskText,
+              checked && styles.taskTextChecked,  // ✅ Fixed: was task.checked
+              goalColor && { color: goalColor, fontWeight: 'bold' }   // ✅ Use calculated goalColor
+            ]}
+          >
             {text}
           </Text>
           {subtitle ? (
             <Text 
               numberOfLines={1}
               ellipsizeMode="tail" 
-              style={[styles.subtitleText, checked && styles.strikedText,]}
+              style={[
+                styles.subtitleText, 
+                checked && styles.strikedText,
+              ]}
             >
               {subtitle}
             </Text>
@@ -47,7 +61,7 @@ export default function TaskItem({
               key={idx}
               style={{
                 flexDirection: 'row',
-                alignItems: 'flex-start', // changed to flex-start for desc multiline
+                alignItems: 'flex-start',
                 marginBottom: 6,
               }}>
               <TouchableOpacity

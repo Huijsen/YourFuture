@@ -27,6 +27,7 @@ export default function ExpandableBlock({
   onDeleteGoal,
   onEditGoalPage,
   goalDates,
+  color, // 🎨 add this
 }) {
   const animation = useMemo(() => new Animated.Value(0), []);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -279,7 +280,7 @@ export default function ExpandableBlock({
               style={{
                 padding: 20,
                 marginBottom: 10,
-                backgroundColor: '#eee',
+                backgroundColor: "#eee",
                 borderRadius: 10,
                 height: expanded ? 355 : 270,
                 justifyContent: 'flex-start',
@@ -293,7 +294,7 @@ export default function ExpandableBlock({
                   alignItems: 'center',
                 }}
               >
-                <Text style={{ fontWeight: 'bold', fontSize: 25 }}>{goalTitle}</Text>
+                <Text style={{ fontWeight: 'bold', fontSize: 25 ,color: color }}>{goalTitle}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   {expanded ? (
                     <TouchableOpacity
