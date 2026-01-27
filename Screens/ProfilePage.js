@@ -51,7 +51,7 @@ export default function ProfilePage({
         </Text>
         <TextInput
           style={{ fontSize: 14}}
-          placeholder="Your Bio"
+          placeholder="Tap to edit your Bio"
           value={userBio}
           onChangeText={setUserBio}
         />
