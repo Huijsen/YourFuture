@@ -81,5 +81,13 @@
 	<string>Light</string>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>NSContactsUsageDescription</key>
+	<string>We use your contacts to help you connect with friends in Your Future</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>To set your profile picture</string>
+	<key>NSCameraUsageDescription</key>
+	<string>To take a profile picture</string>
+	<key>NSPrivacyPolicyLink</key>
+	<string>https://yourfuture.example.com/privacy</string>
 </dict>
 </plist>

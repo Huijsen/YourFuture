@@ -18,6 +18,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ActivityIndicator, Alert } from 'react-native'; // Add these
 import NetInfo from '@react-native-community/netinfo';
+import Constants from 'expo-constants';
 
 import { styles } from './styles'; // <- import styles
 import { runMatching } from "./runMatching"; // Algorithm
@@ -56,15 +57,16 @@ import { getAuth, GoogleAuthProvider, signInWithCredential } from 'firebase/auth
 import { getDatabase, ref, set, update, push, child , onValue , get , remove } from "firebase/database";
 import { signInAnonymously } from 'firebase/auth';
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBCVfUpTplRIqiLAcgHrc5VVA7LO6T_Bbc",
-  authDomain: "messages1-fb178.firebaseapp.com",
-  databaseURL: "https://messages1-fb178-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "messages1-fb178",
-  storageBucket: "messages1-fb178.firebasestorage.app",
-  messagingSenderId: "714454103672",
-  appId: "1:714454103672:web:9aa14f39038c7671b01f8d",
-  measurementId: "G-FQN9B0BTME"
+// Load Firebase config from environment variables via app.config.js
+const firebaseConfig = Constants.expoConfig?.extra?.firebaseConfig || {
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  databaseURL: process.env.EXPO_PUBLIC_FIREBASE_DATABASE_URL,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 // Initialize Firebase
